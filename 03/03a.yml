@@ -1,0 +1,70 @@
+#!/usr/bin/env ansible-playbook
+#
+# usage: ./03a.yml -e infile=the_input.txt
+---
+- name: "Advent of Code 2021 - Day 3"
+  hosts:
+    - localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: Read input file contents
+      set_fact:
+        input: '{{ lookup("file", file_name, lstrip=True, rstrip=True).splitlines() }}'
+      vars:
+        file_name: '{{ infile | default("testinput") }}'
+
+    - name: Create YAML array
+      set_fact:
+        input_spread: |-
+          {{ input_spread | default("") }}
+          - {% for ch in line %}
+            - {{ ch }}
+            {% endfor %}
+      loop: '{{ input }}'
+      loop_control:
+        loop_var: line
+
+    - name: Parse YAML array
+      set_fact:
+        lines_bits: '{{ input_spread | from_yaml }}'
+
+    - name: Create hash for each bit position
+      set_fact:
+        bits_lines: '{{ bits_lines | default({}) | combine({i: []}) }}'
+      loop: '{{ lines_bits[0] }}'
+      loop_control:
+        index_var: i
+
+    - name: Populate hash for each bit position
+      include_tasks: fill_bits_lines.yml
+      loop: '{{ lines_bits }}'
+      loop_control:
+        loop_var: line
+
+    - name: Find most common bit at each position
+      set_fact:
+        most_common_bits:  '{{ most_common_bits | default([]) + [common_bit] }}'
+        least_common_bits: '{{ least_common_bits | default([]) + [uncommon_bit] }}'
+      vars:
+        common:       '{{ (item.value | groupby(None)) }}'
+        common_bit:   '{% if common[1][1] | length > common[0][1] | length %}1{% else %}0{% endif %}'
+        uncommon_bit: '{% if common[1][1] | length > common[0][1] | length %}0{% else %}1{% endif %}'
+      loop: '{{ bits_lines | dict2items }}'
+
+    - name: Calculate the gamma and epsilon rates
+      set_fact:
+        gamma_rate:   '{{ most_common_bits | join("") | int(base=2) }}'
+        epsilon_rate: '{{ least_common_bits | join("") | int(base=2) }}'
+
+    - name: Calculate the power consumption
+      set_fact:
+        power_consumption: '{{ gamma_rate | int * epsilon_rate | int }}'
+
+    - name: Print the results
+      debug:
+        msg: |-
+          Gamma rate: {{ gamma_rate }}
+          Epsilon rate: {{ epsilon_rate }}
+          Power consumption: {{ power_consumption }}

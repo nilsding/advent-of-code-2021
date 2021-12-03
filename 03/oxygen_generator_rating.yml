@@ -1,0 +1,40 @@
+---
+- name: Oxygen generator rating .. check if rating list only has one element
+  set_fact:
+    needs_rating: '{{ rating_list | length > 1 }}'
+
+- block:
+  - name: Oxygen generator rating .. Create hash for each bit position
+    set_fact:
+      bits_lines: '{{ bits_lines | default({}) | combine({j: []}) }}'
+    loop: '{{ rating_list[0] }}'
+    loop_control:
+      index_var: j
+      loop_var: _unused
+  
+  - name: Oxygen generator rating .. Populate hash for each bit position
+    include_tasks: fill_bits_lines.yml
+    loop: '{{ rating_list }}'
+    loop_control:
+      loop_var: line
+  
+  - name: 'Oxygen generator rating .. Find most common bit at position {{ i }}'
+    set_fact:
+      most_common_bit: '{% if common[1][1] | length >= common[0][1] | length %}1{% else %}0{% endif %}'
+    vars:
+      common: '{{ bits_lines[i] | groupby(None) }}'
+  
+  - name: 'Oxygen generator rating .. Find all values with bit {{ i }} = {{ most_common_bit }}'
+    set_fact:
+      rl: '{{ rl | default([]) + [val] }}'
+    loop: '{{ rating_list }}'
+    loop_control:
+      loop_var: val
+    when: (val | join(''))[i] == most_common_bit
+  
+  - name: Oxygen generator rating .. Store updated rating list
+    set_fact:
+      rating_list: '{{ rl }}' 
+      rl: []
+
+  when: needs_rating

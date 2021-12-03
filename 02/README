@@ -1,0 +1,7 @@
+compile it:
+    fpc 02a.pas
+    fpc 02b.pas
+
+run it:
+    ./02a < testinput
+    ./02b < testinput

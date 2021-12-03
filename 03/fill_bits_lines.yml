@@ -1,0 +1,7 @@
+---
+- set_fact:
+    bits_lines: '{{ bits_lines | combine({i: bits_lines[i] + [bit]}) }}'
+  loop: '{{ line }}'
+  loop_control:
+    loop_var: bit
+    index_var: i

@@ -1,0 +1,85 @@
+#!/usr/bin/env ansible-playbook
+#
+# usage: ./03b.yml -e infile=the_input.txt
+---
+- name: "Advent of Code 2021 - Day 3 part 2"
+  hosts:
+    - localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: Read input file contents
+      set_fact:
+        input: '{{ lookup("file", file_name, lstrip=True, rstrip=True).splitlines() }}'
+      vars:
+        file_name: '{{ infile | default("testinput") }}'
+
+    - name: Create YAML array
+      set_fact:
+        input_spread: |-
+          {{ input_spread | default("") }}
+          - {% for ch in line %}
+            - {{ ch }}
+            {% endfor %}
+      loop: '{{ input }}'
+      loop_control:
+        loop_var: line
+
+    - name: Parse YAML array
+      set_fact:
+        lines_bits: '{{ input_spread | from_yaml }}'
+
+    - name: Create list for each bit to make looping easier
+      set_fact:
+        bit_list: '{{ bit_list | default([]) + [i] }}'
+      loop: '{{ lines_bits[0] }}'
+      loop_control:
+        index_var: i
+
+    - name: Prepare list for determining oxygen generator rating
+      set_fact:
+        rating_list: '{{ lines_bits }}' # will be overwritten!
+
+    - name: Determine oxygen generator rating
+      include_tasks: oxygen_generator_rating.yml
+      loop: '{{ bit_list }}'
+      loop_control:
+        index_var: i
+
+    - name: Check if we only found one number
+      fail: 'expected to find 1 number, found {{ rating_list | length }}'
+      when: rating_list | length != 1
+
+    - name: Set oxygen generator rating
+      set_fact:
+        oxygen_generator_rating: '{{ rating_list[0] | join("") | int(base=2) }}'
+
+    - name: Prepare list for determining CO2 scrubber rating
+      set_fact:
+        rating_list: '{{ lines_bits }}' # will be overwritten!
+
+    - name: Determine CO2 scrubber rating
+      include_tasks: co2_scrubber_rating.yml
+      loop: '{{ bit_list }}'
+      loop_control:
+        index_var: i
+
+    - name: Check if we only found one number
+      fail: 'expected to find 1 number, found {{ rating_list | length }}'
+      when: rating_list | length != 1
+
+    - name: Set CO2 scrubber rating
+      set_fact:
+        co2_scrubber_rating: '{{ rating_list[0] | join("") | int(base=2) }}'
+
+    - name: Calculate the life support rating
+      set_fact:
+        life_support_rating: '{{ oxygen_generator_rating | int * co2_scrubber_rating | int }}'
+
+    - name: Print the results
+      debug:
+        msg: |-
+          Oxygen generator rating: {{ oxygen_generator_rating }}
+          CO2 scrubber rating: {{ co2_scrubber_rating }}
+          Life support rating: {{ life_support_rating }}
